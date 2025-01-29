@@ -1,0 +1,201 @@
+-- These are the answers to the SQL questions in Task 2
+/*
+Query Question1:
+
+Q:What are the top 5 brands by receipts scanned for most recent month?
+
+A:NULL brandcode is the only result for the latest month based on Scanned Date. 
+If we alter our query to exclude the first date of March 2021 and look at Feb 2021, we see the following results:
+  NULL      │         114 │
+│ BRAND     │           3 │
+│ MISSION   │           2 │
+│ VIVA      │		        1
+
+NULL still been the major brand code but we get other brands coming in now.
+*/
+WITH 
+                    DATE_RANGE AS (SELECT   CAST(YEAR(MAX(dateScanned)) || '-' || MONTH(MAX(dateScanned)) || '-01' AS DATE) START_DATE
+                                        ,   last_day(MAX(dateScanned)) AS END_DATE
+                                        FROM    receipts) 
+                    SELECT      EVT.BrandCode 
+                            ,   COUNT(DISTINCT EVT.recpt_id) AS Total_Scans
+                    From        rewardItemList              EVT
+                    INNER JOIN  receipts                    RCP
+                            ON  EVT.recpt_id              = RCP.recpt_id
+                    INNER JOIN  DATE_RANGE                  CAL
+                            ON  CAST(RCP.dateScanned AS DATE)   BETWEEN CAL.START_DATE AND CAL.END_DATE
+                    GROUP BY    1
+                    ORDER BY    2 DESC
+                    LIMIT 5
+
+/*
+Query Question2:
+
+Q:How does the ranking of the top 5 brands by receipts scanned for the recent month compare to the ranking for the previous month?
+
+A:Looking at Feb 2021 as the previous month, we see NULL still been the major brand, but we also now see other Brand Names coming in:
+  NULL      │         114 │
+│ BRAND     │           3 │
+│ MISSION   │           2 │
+│ VIVA      │		        1
+If we assume March to be invalid due to too little data coming in. 
+We see a different array of brand names coming into the top 5 brands for Jan 2021:
+  NULL           │         504 │
+│ BEN AND JERRYS │          32 │
+│ PEPSI          │          23 │
+│ FOLGERS        │          23 │
+│ KELLOGG'S      │          22
+NULL is still the top Brand Name but all other Brand Names have changed from Jan to Feb based on Top 5 brands
+*/
+WITH 
+                    DATE_RANGE AS (SELECT   CAST(YEAR(MAX(dateScanned)) || '-' || MONTH(MAX(dateScanned)) || '-01' AS DATE) - INTERVAL '1' MONTH START_DATE
+                                        ,   last_day(MAX(dateScanned)) - INTERVAL '1' MONTH AS END_DATE
+                                        FROM    receipts) 
+                    SELECT      EVT.BrandCode 
+                            ,   COUNT(DISTINCT EVT.recpt_id) AS Total_Scans
+                    From        rewardItemList              EVT
+                    INNER JOIN  receipts                    RCP
+                            ON  EVT.recpt_id              = RCP.recpt_id
+                    INNER JOIN  DATE_RANGE                  CAL
+                            ON  CAST(RCP.dateScanned AS DATE)   BETWEEN CAL.START_DATE AND CAL.END_DATE
+                    GROUP BY    1
+                    ORDER BY    2 DESC
+                    LIMIT 5
+
+/*
+Query Question3:
+
+Q:When considering average spend from receipts with 'rewardsReceiptStatus’ of ‘Accepted’ or ‘Rejected’, which is greater?
+
+A:Accepted does not show up in rewardsReceiptStatus, 
+either this is not a valid status or it must be calculated by other means such as earned points. 
+For this reason “rejected” has a higher average dollars spent at an average spend of:
+$1.48. 
+*/
+SELECT    
+                      (SUM(CASE WHEN rewardsReceiptStatus = 'Accepted' THEN totalSpent ELSE 0 END) / COUNT(recpt_id)) AS avg_Accepted_price
+                    , (SUM(CASE WHEN rewardsReceiptStatus = 'REJECTED' THEN totalSpent ELSE 0 END) / COUNT(recpt_id)) AS avg_REJECTED_price
+                    , (SUM(CASE WHEN rewardsReceiptStatus = 'FINISHED' THEN totalSpent ELSE 0 END) / COUNT(recpt_id)) AS avg_FINISHED_price
+                    FROM      receipts          RCP
+
+
+
+
+/*
+Query Question4:
+
+Q:When considering total number of items purchased from receipts with 'rewardsReceiptStatus’ of ‘Accepted’ or ‘Rejected’, which is greater?
+
+A:Accepted does not show up in rewardsReceiptStatus, 
+either this is not a valid status or it must be calculated by other means such as earned points. 
+For this reason “rejected” has a higher Item Count at a total of 173.
+*/
+SELECT  RewardsReceiptStatus 
+    ,   SUM(purchasedItemCount)     Total_items                   
+FROM      receipts          RCP
+GROUP BY    1
+
+/*
+Query Question5:
+
+Q:Which brand has the most spend among users who were created within the past 6 months?
+
+A:Based on using Brand Codes from just rewardItemList, 
+null would be the highest brand for users who joined in the past six month. 
+But if we join in brands data and join on Barcode and BrandCode we get a different story, 
+TOSTITOS becomes the highest spend brand. 
+This tells us that the brandcode and brandCode within rewardsItemlist is not been appended correctly 
+and does not match the brand code in brands data.
+*/
+-- with using brand code from rewarditemlist
+WITH DATE_RANGE AS (SELECT   CAST(YEAR(MAX(dateScanned)) || '-' || MONTH(MAX(dateScanned)) || '-01' AS DATE) - interval '7' month  AS START_DATE
+                                        FROM    receipts) ,
+                         USERS_LS AS (SELECT          user_id
+                                    FROM            users           usr
+                                    INNER JOIN      DATE_RANGE      CAL
+                                            ON      CAST(usr.createdDate AS DATE) >= CAL.START_DATE) 
+                    SELECT      EVT.brandCode     
+                            ,   SUM(CAST(totalSpent AS DECIMAL(18,2))) Tot_spent
+                    From        rewardItemList    EVT
+                    INNER JOIN  receipts          RCP
+                            ON  EVT.recpt_id    = RCP.recpt_id
+                    INNER JOIN  USERS_LS          USR
+                            ON  RCP.userID      = USR.user_ID
+                   /* INNER JOIN  brands            brd
+                            ON  evt.barcode    =  brd.barcode */
+                    GROUP BY   1
+                    ORDER BY   2 DESC
+                    LIMIT 5
+
+-- with joining to brands based on barcode
+WITH DATE_RANGE AS (SELECT   CAST(YEAR(MAX(dateScanned)) || '-' || MONTH(MAX(dateScanned)) || '-01' AS DATE) - interval '7' month  AS START_DATE
+                                        FROM    receipts) ,
+                         USERS_LS AS (SELECT          user_id
+                                    FROM            users           usr
+                                    INNER JOIN      DATE_RANGE      CAL
+                                            ON      CAST(usr.createdDate AS DATE) >= CAL.START_DATE) 
+                    SELECT      BRD.brandCode     
+                            ,   SUM(CAST(totalSpent AS DECIMAL(18,2))) Tot_spent
+                    From        rewardItemList    EVT
+                    INNER JOIN  receipts          RCP
+                            ON  EVT.recpt_id    = RCP.recpt_id
+                    INNER JOIN  USERS_LS          USR
+                            ON  RCP.userID      = USR.user_ID
+                    INNER JOIN  brands            BRD
+                            ON  EVT.barcode    =  BRD.barcode 
+					  AND  EVT.brandCode  =  BRD.brandCod
+                    GROUP BY   1
+                    ORDER BY   2 DESC
+                    LIMIT 6 
+
+
+/*
+Query Question6:
+Q:Which brand has the most spend among users who were created within the past 6 months?
+
+A:If we go based on the BRANDCODE in rewardsItemList then we see NULL as the brand with the most transaction for users who signed up in the last 6 months. 
+But if we join rewardsitemlist and brands on barcode and brand code, 
+we see SWANSON and TOSTITOS as the top brands. But Eem to be excluding a large portion of transactions
+*/
+-- with using brand code from rewarditemlist
+
+WITH DATE_RANGE AS (SELECT   CAST(YEAR(MAX(dateScanned)) || '-' || MONTH(MAX(dateScanned)) || '-01' AS DATE) - interval '7' month  AS START_DATE
+                                        FROM    receipts) ,
+                         USERS_LS AS (SELECT          user_id
+                                    FROM            users           usr
+                                    INNER JOIN      DATE_RANGE      CAL
+                                            ON      CAST(usr.createdDate AS DATE) >= CAL.START_DATE) 
+                    SELECT      EVT.brandCode     
+                            ,   count(Distinct RCP.recpt_id)    cnt_recpt_id
+                    From        rewardItemList    EVT
+                    INNER JOIN  receipts          RCP
+                            ON  EVT.recpt_id    = RCP.recpt_id
+                    INNER JOIN  USERS_LS          USR
+                            ON  RCP.userID      = USR.user_ID
+                    /*INNER JOIN  brands            brd
+                            ON  evt.barcode    =  brd.barcode */
+                    GROUP BY   1
+                    ORDER BY   2 DESC
+                    LIMIT 6 
+
+-- with joining to brands based on barcode
+WITH DATE_RANGE AS (SELECT   CAST(YEAR(MAX(dateScanned)) || '-' || MONTH(MAX(dateScanned)) || '-01' AS DATE) - interval '7' month  AS START_DATE
+                                        FROM    receipts) ,
+                         USERS_LS AS (SELECT          user_id
+                                    FROM            users           usr
+                                    INNER JOIN      DATE_RANGE      CAL
+                                            ON      CAST(usr.createdDate AS DATE) >= CAL.START_DATE) 
+                    SELECT      BRD.brandCode     
+                            ,   count(Distinct RCP.recpt_id)    cnt_recpt_id
+                    From        rewardItemList    EVT
+                    INNER JOIN  receipts          RCP
+                            ON  EVT.recpt_id    = RCP.recpt_id
+                    INNER JOIN  USERS_LS          USR
+                            ON  RCP.userID      = USR.user_ID
+                    INNER JOIN  brands            BRD
+                            ON  EVT.barcode    =  BRD.barcode 
+					  AND  EVT.brandCode  =  BRD.branCode
+                    GROUP BY   1
+                    ORDER BY   2 DESC
+                    LIMIT 6 
+
