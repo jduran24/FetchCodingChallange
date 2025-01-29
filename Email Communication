@@ -1,0 +1,37 @@
+Hello {Stakeholder},
+
+My name is Juan Duran, I am with the Analytics team here at Fetch.
+I been assigned with the task to create the ETL process for the Fetch data that is been delivered via JSON extracts. 
+This data will be used to build up our analytics reporting to answer ongoing question regarding our program. 
+While working with the data a few question have come up that I hope you can help me with.
+
+1.    Users File
+      1.   Based on the initial conversation, the userID in the user file should be unique, 
+           but while running some unit test, we have found that the column _id does has duplications. 
+           This can be a problem as it may lead to inflation of metrics when joining with other data. 
+     
+      2.   Is a unique UserID in the user file still the expected behavior? 
+2.   Missing Values:
+      1.   While doing validation on our data structures and uniqueness of different columns, 
+           we have found that multiply attributes in the structure rewardsReceiptItemList in the receipt 	file  are empty. 
+           This has cause some issues when trying to report as we are unable to accuracy query the data structure. 
+      
+      2.   What is the business rules for the rewardsReceiptItemList data structure? Is this behavior expected?
+            
+            1.   If not, do we need to communicate with the teams handling the data capture to 
+                 address any concurs regarding our data integrity based on our customer point of contact?
+3.  Missmatch or invalid Values:
+     1.   We are seen unique column association between the different files not match up. 
+             1.   As an example, we are seen UserID in the receipt file that are not part of the user file.
+     2. 	We are also seen a lot of test values still part of the files.
+     	       1.   Do we need to remove the test values from our side? Or are these expected to be 			       
+                  dropped as we continue with the program?
+
+I would love for us to get together to go over the current data we have available, 
+Getting some more insights for my team will help us understand the data and the 
+different business rules we should account for in our logic.
+
+Thank you for time and support, looking forward to working with you!
+
+Best Regards,
+Juan Duran
